@@ -1,0 +1,8 @@
+# dirs
+node_modules
+
+# files
+*.env
+*.temp
+*.log
+

@@ -1,0 +1,21 @@
+version: '3.9'
+networks:
+  grocery-databases:
+    external: true
+services:
+  drs-backend:
+    env_file:
+      - './backend.env'
+    container_name: 'grocery-backend'
+    volumes:
+      - grocery-backend_data:/app/store
+    build:
+      context: ../../../
+      dockerfile: Dockerfile
+      target: runner
+    ports:
+      - 8080:8080
+    networks:
+      - grocery-databases
+volumes:
+  grocery-backend_data:

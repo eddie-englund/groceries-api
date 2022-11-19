@@ -1,0 +1,18 @@
+version: '3.9'
+networks:
+  default:
+    name: 'grocery-databases'
+services:
+  mongo:
+    image: mongo:6.0.3
+    container_name: 'mongo'
+    volumes:
+      - mongo_data:/mongodb/data/db
+      - ./initdb.js:/docker-entrypoint-initdb.d/initdb.js
+    env_file:
+      - './database.env'
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+volumes:
+  mongo_data:

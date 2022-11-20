@@ -3,10 +3,17 @@ import { either } from 'fp-ts';
 import { Either } from 'fp-ts/lib/Either';
 import helmet from '@fastify/helmet';
 import { logger } from './index';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { registerRoutes } from './routes/router';
 
 export const initFastify = (): Either<Error, FastifyInstance> => {
   const app = fastify();
-  app.register(helmet)
+  app.register(helmet);
+
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
+  registerRoutes(app);
 
   try {
     app.listen({

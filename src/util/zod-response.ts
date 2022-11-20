@@ -1,15 +1,8 @@
 import z from 'zod';
 
-export const MsgResponsesE = z.enum(['Success', 'Failure']);
+export const MsgResponses = z.enum(['Success', 'Failure']);
 
-export enum MsgResponses {
-  Success = "Success",
-  Failure = "Failure"
-}
-
-export const defaultResponse = z.object({
-  msg: z
-    .enum(MsgResponsesE)
-  ),
-  statusCode: z.strign
-})
+export const ZodDefaultResponse = z.object({
+  msg: MsgResponses,
+  statusCode: z.number().min(100).max(500),
+});

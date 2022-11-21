@@ -40,7 +40,7 @@ class RetryConnectError extends Error {
 export const retryConnectDb = async (
   details: ConnectionDetails,
   interval: number = ms('10s'),
-  retryTimes: number = 5,
+  retryTimes = 5,
 ): Promise<Either<RetryConnectError, true>> => {
   let attempts = 1;
   const connectionAttempt = async (): Promise<Either<RetryConnectError, true>> => {
@@ -56,7 +56,7 @@ export const retryConnectDb = async (
       logger.error(`Failed to connect after ${attempts} attempts`);
       return either.left(new RetryConnectError(interval, retryTimes));
     } else {
-      logger.info(`Connected to database ${details.dbName}`)
+      logger.info(`Connected to database ${details.dbName}`);
       return either.right(true);
     }
   };

@@ -6,10 +6,12 @@ export const loginSchema = z.object({
   password: z.string().min(6).max(256).trim(),
 });
 
-export const loginResponseSchema = z
+export const LoginResponseSchema = z
   .object({
     data: z.object({
       jwt: z.string().min(1).max(1024),
     }),
   })
   .merge(ZodDefaultResponse);
+
+export type LoginResponseSchemaT = z.infer<typeof LoginResponseSchema>;

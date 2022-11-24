@@ -1,13 +1,20 @@
 import { getCollections } from '@db/db';
 import { logger } from '@index';
-import { MsgResponses, ZodDefaultResponse } from '@util/zod-response';
+import {
+  MsgResponses,
+  ZodDefaultResponse,
+  ZodDefaultResponseT,
+} from '@util/zod-response';
 import { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { either } from 'fp-ts';
-import { pipe } from 'fp-ts/lib/function';
-import { tryCatch, chainW } from 'fp-ts/lib/TaskEither';
-import { LoginResponseSchema, loginSchema } from './login-schema';
+import { tryCatch as TETryCatch } from 'fp-ts/lib/TaskEither';
+import { LoginResponseSchema, LoginResponseSchemaT, loginSchema } from './login-schema';
 import argon2 from 'argon2';
+import { generateToken, RefreshToken, SessionToken } from '@util/generate-jwt';
+import { Do } from 'fp-ts-contrib/lib/Do';
+import * as TE from 'fp-ts/lib/TaskEither';
+import { match } from 'fp-ts/lib/Either';
+import { pipe } from 'fp-ts/lib/function';
 
 class UserNotFoundError extends Error {
   public constructor(username: string, reason: unknown) {
@@ -23,8 +30,13 @@ class InvalidPasswordError extends Error {
   }
 }
 
-const validatePw = async (inputPw: string, username: string, hash?: string): Promise<boolean> => {
-  if (!hash) return Promise.reject(new InvalidPasswordError(username, 'No hash provided from db'));
+const validatePw = async (
+  inputPw: string,
+  username: string,
+  hash?: string,
+): Promise<boolean> => {
+  if (!hash)
+    return Promise.reject(new InvalidPasswordError(username, 'No hash provided from db'));
   try {
     const verify = await argon2.verify(hash, inputPw);
     if (!verify) Promise.reject(new InvalidPasswordError(username, 'Invalid password'));
@@ -47,35 +59,74 @@ export const LoginRouter = async (app: FastifyInstance) => {
       },
     },
     handler: async (req, reply) => {
-      const passwordE = await pipe(
-        tryCatch(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          async () => await getCollections().users!.findOne({ username: req.body.username }),
-          (reason) => new UserNotFoundError(req.body.username, reason),
-        ),
-        chainW((res) =>
-          tryCatch(
-            async () => await validatePw(req.body.username, req.body.password, res?.password),
-            (reason) => new InvalidPasswordError(req.body.username, reason),
+      const invalidPwMessage = 'Invalid credentials, please try again.';
+      const password2 = await Do(TE.MonadTask)
+        .bind(
+          'user',
+          TETryCatch(
+            async () =>
+              await getCollections().users?.findOne({ username: req.body.username }),
+            (reason) => {
+              logger.debug(new UserNotFoundError(req.body.username, reason));
+              return {
+                msg: invalidPwMessage,
+                status: MsgResponses.Enum.Failure,
+                statusCode: 400,
+              } as ZodDefaultResponseT;
+            },
           ),
+        )
+        .bindL('validPassword', ({ user }) =>
+          TETryCatch(
+            async () =>
+              await validatePw(req.body.password, req.body.username, user?.password),
+            (reason) => {
+              logger.debug(reason);
+              return {
+                msg: invalidPwMessage,
+                status: MsgResponses.Enum.Failure,
+                statusCode: 400,
+              } as ZodDefaultResponseT;
+            },
+          ),
+        )
+        .bindL('refreshToken', ({ user }) =>
+          TE.fromEither(
+            generateToken(user?.username, RefreshToken, process.env.JWT_REFRESH_SECRET),
+          ),
+        )
+        .bindL('sessionToken', ({ user }) =>
+          TE.fromEither(
+            generateToken(user?.username, SessionToken, process.env.JWT_SESSION_SECRET),
+          ),
+        )
+        .return(({ sessionToken, refreshToken }) => ({
+          msg: `Success, you've now logged in!`,
+          statusCode: 200,
+          status: MsgResponses.Enum.Success,
+          data: {
+            sessionToken,
+            refreshToken,
+          },
+        }))();
+
+      const status = pipe(
+        password2,
+        match(
+          (left) => left.statusCode,
+          (right) => right.statusCode,
         ),
-      )();
+      );
 
-      if (either.isLeft(passwordE)) {
-        logger.debug(passwordE.left);
-        return reply.status(400).send({
-          status: MsgResponses.enum.Failure,
-          msg: 'Invalid credentials, please try agian.',
-          statusCode: 400,
-        });
-      }
+      const result = pipe(
+        password2,
+        match(
+          (left) => left,
+          (right) => right as LoginResponseSchemaT,
+        ),
+      );
 
-      return reply.status(200).send({
-        status: MsgResponses.enum.Success,
-        msg: 'Success, logged in!',
-        statusCode: 200,
-        data: { jwt: 'owo' },
-      });
+      return reply.status(status).send(result);
     },
   });
 };

@@ -9,7 +9,8 @@ export const loginSchema = z.object({
 export const LoginResponseSchema = z
   .object({
     data: z.object({
-      jwt: z.string().min(1).max(1024),
+      refreshToken: z.string().min(1).max(1024),
+      sessionToken: z.string().min(1).max(1024),
     }),
   })
   .merge(ZodDefaultResponse);

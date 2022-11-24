@@ -29,8 +29,14 @@ export const createLogger = (): Logger => {
 
   if (process.env.NODE_ENV.toLowerCase() === 'production') {
     logger = winston.createLogger({
-      levels: Object.assign({ fatal: 0, warn: 4, trace: 7 }, winston.config.syslog.levels),
-      format: winston.format.combine(winston.format.label({ label: appName }), winston.format.json()),
+      levels: Object.assign(
+        { fatal: 0, warn: 4, trace: 7 },
+        winston.config.syslog.levels,
+      ),
+      format: winston.format.combine(
+        winston.format.label({ label: appName }),
+        winston.format.json(),
+      ),
       defaultMeta: { svc: appName },
     });
   }

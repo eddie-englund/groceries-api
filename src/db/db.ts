@@ -16,7 +16,10 @@ interface ConnectionDetails {
   dbName: string;
 }
 
-export const connectDB = async ({ uri, dbName }: ConnectionDetails): Promise<Either<Error, true>> => {
+export const connectDB = async ({
+  uri,
+  dbName,
+}: ConnectionDetails): Promise<Either<Error, true>> => {
   try {
     const client = new MongoClient(uri);
     await client.connect();
@@ -33,7 +36,9 @@ export const connectDB = async ({ uri, dbName }: ConnectionDetails): Promise<Eit
 
 class RetryConnectError extends Error {
   public constructor(interval: number, retryTimes: number) {
-    super(`Failed to connect to db after ${retryTimes} attempts with inveral '${interval}'`);
+    super(
+      `Failed to connect to db after ${retryTimes} attempts with inveral '${interval}'`,
+    );
   }
 }
 

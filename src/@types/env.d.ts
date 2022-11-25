@@ -7,9 +7,9 @@ declare global {
       MONGODB_NAME: string;
       JWT_SESSION_SECRET: string;
       JWT_REFRESH_SECRET: string;
-      COOKIE_SECRET: string;
-      REDIS_URI: string;
       APP_PORT: string;
+      APP_ADMIN_USERNAME: string;
+      APP_ADMIN_PASSWORD: string;
     }
   }
 }

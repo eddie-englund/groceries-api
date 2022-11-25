@@ -1,10 +1,6 @@
 import { getCollections } from '@db/db';
 import { logger } from '@index';
-import {
-  MsgResponses,
-  ZodDefaultResponse,
-  ZodDefaultResponseT,
-} from '@util/zod-response';
+import { StatusResponses, ZodDefaultResponse, ZodDefaultResponseT } from '@util/zod-response';
 import { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { tryCatch as TETryCatch } from 'fp-ts/lib/TaskEither';
@@ -30,13 +26,8 @@ class InvalidPasswordError extends Error {
   }
 }
 
-const validatePw = async (
-  inputPw: string,
-  username: string,
-  hash?: string,
-): Promise<boolean> => {
-  if (!hash)
-    return Promise.reject(new InvalidPasswordError(username, 'No hash provided from db'));
+const validatePw = async (inputPw: string, username: string, hash?: string): Promise<boolean> => {
+  if (!hash) return Promise.reject(new InvalidPasswordError(username, 'No hash provided from db'));
   try {
     const verify = await argon2.verify(hash, inputPw);
     if (!verify) Promise.reject(new InvalidPasswordError(username, 'Invalid password'));
@@ -60,17 +51,16 @@ export const LoginRouter = async (app: FastifyInstance) => {
     },
     handler: async (req, reply) => {
       const invalidPwMessage = 'Invalid credentials, please try again.';
-      const password2 = await Do(TE.MonadTask)
+      const validateLogin = await Do(TE.MonadTask)
         .bind(
           'user',
           TETryCatch(
-            async () =>
-              await getCollections().users?.findOne({ username: req.body.username }),
+            async () => await getCollections().users?.findOne({ username: req.body.username }),
             (reason) => {
               logger.debug(new UserNotFoundError(req.body.username, reason));
               return {
                 msg: invalidPwMessage,
-                status: MsgResponses.Enum.Failure,
+                status: StatusResponses.Enum.Failure,
                 statusCode: 400,
               } as ZodDefaultResponseT;
             },
@@ -78,32 +68,27 @@ export const LoginRouter = async (app: FastifyInstance) => {
         )
         .bindL('validPassword', ({ user }) =>
           TETryCatch(
-            async () =>
-              await validatePw(req.body.password, req.body.username, user?.password),
+            async () => await validatePw(req.body.password, req.body.username, user?.password),
             (reason) => {
               logger.debug(reason);
               return {
                 msg: invalidPwMessage,
-                status: MsgResponses.Enum.Failure,
+                status: StatusResponses.Enum.Failure,
                 statusCode: 400,
               } as ZodDefaultResponseT;
             },
           ),
         )
         .bindL('refreshToken', ({ user }) =>
-          TE.fromEither(
-            generateToken(user?.username, RefreshToken, process.env.JWT_REFRESH_SECRET),
-          ),
+          TE.fromEither(generateToken(user?.username, RefreshToken, process.env.JWT_REFRESH_SECRET)),
         )
         .bindL('sessionToken', ({ user }) =>
-          TE.fromEither(
-            generateToken(user?.username, SessionToken, process.env.JWT_SESSION_SECRET),
-          ),
+          TE.fromEither(generateToken(user?.username, SessionToken, process.env.JWT_SESSION_SECRET)),
         )
         .return(({ sessionToken, refreshToken }) => ({
           msg: `Success, you've now logged in!`,
           statusCode: 200,
-          status: MsgResponses.Enum.Success,
+          status: StatusResponses.Enum.Success,
           data: {
             sessionToken,
             refreshToken,
@@ -111,7 +96,7 @@ export const LoginRouter = async (app: FastifyInstance) => {
         }))();
 
       const status = pipe(
-        password2,
+        validateLogin,
         match(
           (left) => left.statusCode,
           (right) => right.statusCode,
@@ -119,7 +104,7 @@ export const LoginRouter = async (app: FastifyInstance) => {
       );
 
       const result = pipe(
-        password2,
+        validateLogin,
         match(
           (left) => left,
           (right) => right as LoginResponseSchemaT,

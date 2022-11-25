@@ -1,9 +1,4 @@
-import {
-  MsgResponses,
-  MsgStatusResponses,
-  ZodDefaultResponse,
-  ZodDefaultResponseT,
-} from '@util/zod-response';
+import { StatusResponses, MsgStatusResponses, ZodDefaultResponse, ZodDefaultResponseT } from '@util/zod-response';
 import { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { Do } from 'fp-ts-contrib/lib/Do';
@@ -12,25 +7,38 @@ import * as TE from 'fp-ts/lib/TaskEither';
 import argon2 from 'argon2';
 import { logger } from '@index';
 import { getCollections } from '@db/db';
-import { ObjectId } from 'mongodb';
 import { pipe } from 'fp-ts/lib/function';
-
-// TODO: Add admin only creation of users!
+import { validateAdmin } from '@util/validate-admin';
+import { ZodError } from 'zod';
 
 export const CreateUserRouter = async (app: FastifyInstance) => {
   app.withTypeProvider<ZodTypeProvider>().route({
     method: 'POST',
-    url: '/create',
+    url: '/user/create',
     schema: {
       body: createUserSchema,
       response: {
-        200: ZodDefaultResponse,
-        400: ZodDefaultResponse,
-        500: ZodDefaultResponse,
+        201: ZodDefaultResponse,
+        400: ZodDefaultResponse || ZodError<ZodDefaultResponseT>,
+        500: ZodDefaultResponse || ZodError<ZodDefaultResponseT>,
       },
     },
     handler: async (req, reply) => {
-      const user = await Do(TE.MonadTask)
+      const user = Do(TE.MonadTask)
+        .bind(
+          'validAdmin',
+          TE.tryCatch(
+            async () => await validateAdmin(req.body.adminUsername, req.body.adminPassword),
+            (reason) => {
+              logger.error(reason);
+              return {
+                msg: MsgStatusResponses.Enum['Bad request'],
+                status: StatusResponses.Enum.Failure,
+                statusCode: 400,
+              } as ZodDefaultResponseT;
+            },
+          ),
+        )
         .bind(
           'userExist',
           TE.tryCatch(
@@ -42,7 +50,7 @@ export const CreateUserRouter = async (app: FastifyInstance) => {
               logger.error(reason);
               return {
                 msg: MsgStatusResponses.Enum['Bad request'],
-                status: MsgResponses.Enum.Failure,
+                status: StatusResponses.Enum.Failure,
                 statusCode: 400,
               } as ZodDefaultResponseT;
             },
@@ -55,7 +63,7 @@ export const CreateUserRouter = async (app: FastifyInstance) => {
               logger.error(reason);
               return {
                 msg: MsgStatusResponses.Enum['Internal server error'],
-                status: MsgResponses.Enum.Failure,
+                status: StatusResponses.Enum.Failure,
                 statusCode: 500,
               } as ZodDefaultResponseT;
             },
@@ -65,7 +73,6 @@ export const CreateUserRouter = async (app: FastifyInstance) => {
           TE.tryCatch(
             async () =>
               await getCollections().users?.insertOne({
-                _id: new ObjectId(req.body.username),
                 username: req.body.username,
                 email: req.body.email,
                 password: passwordHash,
@@ -75,7 +82,7 @@ export const CreateUserRouter = async (app: FastifyInstance) => {
               logger.error(reason);
               return {
                 msg: MsgStatusResponses.Enum['Internal server error'],
-                status: MsgResponses.Enum.Failure,
+                status: StatusResponses.Enum.Failure,
                 statusCode: 500,
               } as ZodDefaultResponseT;
             },
@@ -89,9 +96,9 @@ export const CreateUserRouter = async (app: FastifyInstance) => {
           (left) => left,
           () =>
             ({
-              status: MsgResponses.Enum.Success,
+              status: StatusResponses.Enum.Success,
               msg: 'Success, created user!',
-              statusCode: 200,
+              statusCode: 201,
             } as ZodDefaultResponseT),
         ),
       )();

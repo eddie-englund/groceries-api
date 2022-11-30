@@ -1,9 +1,16 @@
+import { Stores } from '@routes/lists/lib/stores';
+import { z } from 'zod';
+
 export interface ListItem {
-  itemName: string;
-  itemUrl?: string;
-  itemImgUrl?: string;
+  name: string;
+  description?: string;
+  price?: number;
+  store: z.infer<typeof Stores>;
 }
 
-export interface ListEntry {
-  list: ListItem[];
+export interface List {
+  name: string;
+  url?: string;
+  imgUrl?: string;
+  items: ListItem[];
 }

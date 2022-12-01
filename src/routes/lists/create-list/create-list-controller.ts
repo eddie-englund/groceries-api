@@ -15,8 +15,7 @@ import { validateSession } from '@util/validate-session';
 
 class CreateListError extends Error {
   public constructor(username: string, reason: any) {
-    super(`Failed to create a list for user '${username}'`);
-    super.cause = reason;
+    super(`Failed to create a list for user '${username}' with reason: ${reason}`);
   }
 }
 
@@ -32,6 +31,7 @@ export const CreatelistRouter = async (app: FastifyInstance) => {
     },
     preHandler: (req, reply) => validateSession(req, reply),
     handler: async (req, reply) => {
+      logger.info(req.jwtPayload);
       await pipe(
         TE.Do,
         TE.bind('jwtUser', () =>

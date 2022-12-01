@@ -18,15 +18,13 @@ import { pipe } from 'fp-ts/lib/function';
 
 export class UserNotFoundError extends Error {
   public constructor(username: string, reason: unknown) {
-    super(`No user found with username '${username}'`);
-    super.cause = reason;
+    super(`No user found with username '${username}' with reason: ${reason}`);
   }
 }
 
 class InvalidPasswordError extends Error {
   public constructor(username: string, reason: unknown) {
-    super(`Invalid password submitted for user '${username}'`);
-    super.cause = reason;
+    super(`Invalid password submitted for user '${username}' with reason: ${reason}`);
   }
 }
 

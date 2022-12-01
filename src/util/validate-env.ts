@@ -8,11 +8,11 @@ class MissingEnvVariablesError extends Error {
 
 const EnvVariables = [
   'NODE_ENV',
-  'CORS_ORIGINS',
+  'APP_CORS_ORIGINS',
   'MONGODB_URI',
   'MONGODB_NAME',
-  'JWT_SESSION_TOKEN',
-  'JWT_REFRESH_TOKEN',
+  'JWT_SESSION_SECRET',
+  'JWT_REFRESH_SECRET',
   'APP_PORT',
   'APP_ADMIN_USERNAME',
   'APP_ADMIN_PASSWORD',
@@ -20,15 +20,13 @@ const EnvVariables = [
 
 export const validateEnv = () => {
   const missingVariables: string[] = [];
-  const setVariables = Object.values(process.env);
 
-  EnvVariables.forEach((variable) => {
-    if (setVariables.includes(variable)) return;
-    missingVariables.push(variable);
+  EnvVariables.forEach((key) => {
+    if (!Object.prototype.hasOwnProperty.call(process.env, key))
+      missingVariables.push(key);
   });
 
   if (!missingVariables.length) return;
   logger.error(new MissingEnvVariablesError(missingVariables));
-
   process.exit(1);
 };

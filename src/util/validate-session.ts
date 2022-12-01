@@ -12,8 +12,7 @@ import { ListItem } from '@routes/lists/create-list/create-list-schema';
 
 export class UserNotAuthenticatedError extends Error {
   public constructor(token: string, reason: any) {
-    super(`Token '${token}' is invalid`);
-    super.cause = reason;
+    super(`Token '${token}' is invalid, reason: ${reason}`);
   }
 }
 export const JwtSchema = z.object({
@@ -31,7 +30,7 @@ const validateTokenData = (payload: any) =>
   O.fromEither(
     E.tryCatch(
       () => JwtSchema.parse(payload),
-      (reason) => logger.debug(reason),
+      (reason) => logger.error(reason),
     ),
   );
 
@@ -41,14 +40,17 @@ const getTokenFromHeader = (header: string): O.Option<string> =>
 const validateToken = (token: string): O.Option<JwtUser | string> =>
   O.fromNullable(jwt.verify(token, process.env.JWT_SESSION_SECRET));
 
-export const validateSession = async (request: FastifyRequest, reply: FastifyReply) => {
+export const validateSession = async (req: FastifyRequest, reply: FastifyReply) => {
   const validate = pipe(
-    request.headers.authorization,
+    req.headers.authorization,
     O.fromNullable,
     O.chain(flow(getTokenFromHeader)),
     O.chain(flow(validateToken)),
     O.chain(flow(validateTokenData)),
-    O.map((res) => (request.jwtPayload = res)),
+    O.map((res) => {
+      logger.debug(res);
+      req.jwtPayload = res;
+    }),
   );
 
   await pipe(

@@ -1,13 +1,8 @@
-import { JwtPayload } from 'jsonwebtoken';
+import { JwtSchema } from '../util/validate-session';
 import { z } from 'zod';
-import { JwtSchema } from '@util/validate-session';
-
-interface JwtUser extends JwtPayload {
-  user?: z.infer<JwtSchema>;
-}
 
 declare module 'fastify' {
   interface FastifyRequest {
-    jwtPayload: JwtUser;
+    user: z.infer<JwtSchema>;
   }
 }

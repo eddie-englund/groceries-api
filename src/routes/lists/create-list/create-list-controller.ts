@@ -12,6 +12,7 @@ import { getCollections } from '@db/db';
 import { logger } from '@index';
 import { pipe } from 'fp-ts/function';
 import { validateSession } from '@util/validate-session';
+import crypto from 'crypto';
 
 class CreateListError extends Error {
   public constructor(username: string, reason: any) {
@@ -31,28 +32,27 @@ export const CreatelistRouter = async (app: FastifyInstance) => {
     },
     preHandler: (req, reply) => validateSession(req, reply),
     handler: async (req, reply) => {
-      logger.info(req.jwtPayload);
+      logger.debug(`Creating list for user ${req.user.username}`);
       await pipe(
         TE.Do,
-        TE.bind('jwtUser', () =>
-          TE.fromNullable({
-            msg: MsgStatusResponses.Enum['Internal server error'],
-            status: StatusResponses.Enum.Failure,
-            statusCode: 500,
-          } as ZodDefaultResponseT)(req.jwtPayload.user),
-        ),
-        TE.bindW('addItem', ({ jwtUser }) =>
+        TE.bind('addItem', () =>
           TE.tryCatch(
             async () =>
               await getCollections().users?.findOneAndUpdate(
-                { email: jwtUser.email },
+                { email: req.user.email },
                 {
-                  $push: { lists: { name: req.body.name, items: req.body.items } },
+                  $push: {
+                    lists: {
+                      id: crypto.randomUUID(),
+                      name: req.body.name,
+                      items: req.body.items,
+                    },
+                  },
                 },
                 { returnDocument: 'after' },
               ),
             (reason) => {
-              logger.error(new CreateListError(jwtUser.username, reason));
+              logger.error(new CreateListError(req.user.username, reason));
               return {
                 msg: MsgStatusResponses.Enum['Internal server error'],
                 status: StatusResponses.Enum.Failure,
@@ -63,7 +63,7 @@ export const CreatelistRouter = async (app: FastifyInstance) => {
         ),
         TE.map(() =>
           reply.status(200).send({
-            msg: 'Success',
+            msg: `Success, your list ${req.body.name} has been created!`,
             status: StatusResponses.Enum.Success,
             statusCode: 200,
           }),

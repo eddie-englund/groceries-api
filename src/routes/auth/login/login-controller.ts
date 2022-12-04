@@ -99,7 +99,11 @@ export const LoginRouter = async (app: FastifyInstance) => {
         )
         .bindL('sessionToken', ({ user }) =>
           TE.fromEither(
-            generateToken(user?.username, SessionToken, process.env.JWT_SESSION_SECRET),
+            generateToken(
+              { user: { ...user, password: 'REDACTED', lists: [] } },
+              SessionToken,
+              process.env.JWT_SESSION_SECRET,
+            ),
           ),
         )
         .return(({ sessionToken, refreshToken }) => ({

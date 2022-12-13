@@ -1,11 +1,17 @@
+import { StatusResponses, ZodValidationErrorResponse } from './util/zod-response';
 import fastify, { FastifyInstance } from 'fastify';
 import { either } from 'fp-ts';
 import { Either } from 'fp-ts/lib/Either';
 import helmet from '@fastify/helmet';
 import { logger } from './index';
-import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import {
+  ResponseValidationError,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
 import { registerRoutes } from './routes/router';
-import { ZodError } from 'zod';
+import cors from '@fastify/cors';
+import { z } from 'zod';
 
 export const initFastify = (): Either<Error, FastifyInstance> => {
   const app = fastify();
@@ -14,13 +20,18 @@ export const initFastify = (): Either<Error, FastifyInstance> => {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  app.setErrorHandler((error, request, reply) => {
-    if (error instanceof ZodError) {
-      reply.status(400).send({
+  app.register(cors, { origin: '*' });
+
+  app.setErrorHandler((err, req, reply) => {
+    if (err instanceof ResponseValidationError) {
+      logger.warn(err);
+      return reply.status(400).send({
+        error: 'validation',
+        details: err.details,
         statusCode: 400,
-        msg: 'Validation error',
-        errors: JSON.parse(error.message),
-      });
+        msg: 'Input failed validation, please check parameters',
+        status: StatusResponses.Enum.Failure,
+      } as z.infer<typeof ZodValidationErrorResponse>);
     }
   });
 

@@ -1,3 +1,4 @@
+import { ValidateSessionRouter } from './auth/validate-session-token/validate-session-token-controller';
 import { FastifyInstance } from 'fastify';
 import { LoginRouter } from './auth/login/login-controller';
 import { CreatelistRouter } from './lists/create-list/create-list-controller';
@@ -13,6 +14,7 @@ const userRoutePrefix = { prefix: prefix.prefix + '/user' };
 
 export const registerRoutes = (app: FastifyInstance): void => {
   app.register(LoginRouter, prefix);
+  app.register(ValidateSessionRouter, prefix);
   app.register(CreatelistRouter, listRoutePrefix);
   app.register(GetListRouter, listRoutePrefix);
   app.register(DeleteListRouter, listRoutePrefix);

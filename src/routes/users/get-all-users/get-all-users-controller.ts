@@ -11,6 +11,7 @@ import { logger } from '@index';
 import { pipe } from 'fp-ts/function';
 import { validateSession } from '@util/validate-session';
 import { GetAllUsersSchema } from './get-all-users-schema';
+import { z } from 'zod';
 
 export class ListNotFoundError extends Error {
   public constructor(listId: string, user: string) {
@@ -26,6 +27,7 @@ export const GetAllUsersRouter = async (app: FastifyInstance) => {
       response: {
         200: GetAllUsersSchema,
         400: ZodDefaultResponse,
+        500: ZodDefaultResponse,
       },
     },
     preHandler: (req, reply) => validateSession(req, reply),
@@ -50,14 +52,27 @@ export const GetAllUsersRouter = async (app: FastifyInstance) => {
         ),
         TE.mapLeft((left) => {
           logger.error(JSON.stringify(left));
-          return reply.status(400).send({
-            msg: MsgStatusResponses.Enum['Bad request'],
+          return reply.status(500).send({
+            msg: MsgStatusResponses.Enum['Internal server error'],
             status: StatusResponses.Enum.Failure,
             statusCode: 500,
           });
         }),
-        TE.map(({ arrayUser }) =>
-          reply.status(200).send({
+        TE.map(({ arrayUser }) => {
+          logger.debug(
+            JSON.stringify({
+              data: arrayUser.map((p) => {
+                return {
+                  username: p.username,
+                  lists: p.lists,
+                };
+              }),
+              msg: 'Here ya go!.',
+              status: StatusResponses.Enum.Success,
+              statusCode: 200,
+            }),
+          );
+          return reply.status(200).send({
             data: arrayUser.map((p) => {
               return {
                 username: p.username,
@@ -67,8 +82,8 @@ export const GetAllUsersRouter = async (app: FastifyInstance) => {
             msg: 'Here ya go!.',
             status: StatusResponses.Enum.Success,
             statusCode: 200,
-          }),
-        ),
+          } as z.infer<typeof GetAllUsersSchema>);
+        }),
       )();
     },
   });

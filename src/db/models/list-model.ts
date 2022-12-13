@@ -2,7 +2,7 @@ import { Stores } from '@routes/lists/lib/stores';
 import { z } from 'zod';
 
 export interface ListItem {
-  id?: string;
+  id: string;
   name: string;
   description?: string;
   price?: number;
@@ -12,6 +12,7 @@ export interface ListItem {
 export interface List {
   id: string;
   name: string;
+  createdAt: string;
   url?: string;
   imgUrl?: string;
   items: ListItem[];

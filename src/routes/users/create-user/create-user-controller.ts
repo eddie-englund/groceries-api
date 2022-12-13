@@ -1,4 +1,9 @@
-import { StatusResponses, MsgStatusResponses, ZodDefaultResponse, ZodDefaultResponseT } from '@util/zod-response';
+import {
+  StatusResponses,
+  MsgStatusResponses,
+  ZodDefaultResponse,
+  ZodDefaultResponseT,
+} from '@util/zod-response';
 import { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { Do } from 'fp-ts-contrib/lib/Do';
@@ -28,7 +33,8 @@ export const CreateUserRouter = async (app: FastifyInstance) => {
         .bind(
           'validAdmin',
           TE.tryCatch(
-            async () => await validateAdmin(req.body.adminUsername, req.body.adminPassword),
+            async () =>
+              await validateAdmin(req.body.adminUsername, req.body.adminPassword),
             (reason) => {
               logger.error(reason);
               return {

@@ -16,4 +16,11 @@ export const ZodDefaultResponse = z.object({
   statusCode: z.number().min(100).max(500),
 });
 
+export const ZodValidationErrorResponse = z
+  .object({
+    error: z.string(),
+    details: z.any(),
+  })
+  .merge(ZodDefaultResponse);
+
 export type ZodDefaultResponseT = z.infer<typeof ZodDefaultResponse>;

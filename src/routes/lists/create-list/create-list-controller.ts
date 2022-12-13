@@ -44,12 +44,14 @@ export const CreatelistRouter = async (app: FastifyInstance) => {
                   $push: {
                     lists: {
                       id: crypto.randomUUID(),
+                      createdAt: new Date().toISOString(),
                       name: req.body.name,
-                      items: req.body.items,
+                      items: req.body.items.map((item) => {
+                        return { ...item, id: crypto.randomUUID() };
+                      }),
                     },
                   },
                 },
-                { returnDocument: 'after' },
               ),
             (reason) => {
               logger.error(new CreateListError(req.user.username, reason));

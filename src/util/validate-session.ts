@@ -1,3 +1,4 @@
+import { ZodDefaultResponseT, StatusResponses } from './zod-response';
 import { FastifyReply } from 'fastify';
 import { FastifyRequest } from 'fastify';
 import * as TE from 'fp-ts/TaskEither';
@@ -67,7 +68,11 @@ const validateToken = (
     (reason) => new UserNotAuthenticatedError(token, reason),
   );
 
-export const validateSession = async (req: FastifyRequest, reply: FastifyReply) => {
+export const validateSession = async (
+  req: FastifyRequest,
+  reply: FastifyReply,
+  middleware = true,
+) => {
   const validateE = await Do(TE.MonadTask)
     .bind('header', TE.fromNullable(new MissingHeaderError())(req.headers.authorization))
     .bindL('token', ({ header }) =>
@@ -77,9 +82,6 @@ export const validateSession = async (req: FastifyRequest, reply: FastifyReply) 
       ),
     )
     .bindL('jwt', ({ token }) => validateToken(token))
-    .doL(({ header }) => TE.right(logger.debug(header)))
-    .doL(({ token }) => TE.right(logger.debug(token)))
-    .doL(({ jwt }) => TE.right(logger.debug(JSON.stringify(jwt))))
     .bindL('payload', ({ jwt }) => validateTokenData(jwt))
     .bindL('jwtUser', ({ payload }) =>
       pipe(
@@ -92,14 +94,19 @@ export const validateSession = async (req: FastifyRequest, reply: FastifyReply) 
     .doL(({ jwtUser }) => TE.right((req.user = jwtUser)))
     .return((res) => res.payload)();
 
-  return await pipe(
+  return pipe(
     validateE,
-    E.match(
-      (left) => {
-        logger.error(left);
-        return reply.status(401).send({ msg: 'Invalid session' });
-      },
-      () => undefined,
-    ),
+    E.mapLeft((left) => {
+      logger.error(left);
+      return reply.status(401).send({ msg: 'Invalid session' });
+    }),
+    E.map(() => {
+      if (middleware) return undefined;
+      return reply.status(200).send({
+        msg: 'Success',
+        status: StatusResponses.Enum.Success,
+        statusCode: 200,
+      } as ZodDefaultResponseT);
+    }),
   );
 };

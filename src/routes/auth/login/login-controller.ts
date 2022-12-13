@@ -17,27 +17,27 @@ import { match } from 'fp-ts/lib/Either';
 import { pipe } from 'fp-ts/lib/function';
 
 export class UserNotFoundError extends Error {
-  public constructor(username: string, reason: unknown) {
-    super(`No user found with username '${username}' with reason: ${reason}`);
+  public constructor(email: string, reason: unknown) {
+    super(`No user found with email '${email}' with reason: ${reason}`);
   }
 }
 
 class InvalidPasswordError extends Error {
-  public constructor(username: string, reason: unknown) {
-    super(`Invalid password submitted for user '${username}' with reason: ${reason}`);
+  public constructor(email: string, reason: unknown) {
+    super(`Invalid password submitted for user '${email}' with reason: ${reason}`);
   }
 }
 
 const validatePw = async (
   inputPw: string,
-  username: string,
+  email: string,
   hash?: string,
 ): Promise<boolean> => {
   if (!hash)
-    return Promise.reject(new InvalidPasswordError(username, 'No hash provided from db'));
+    return Promise.reject(new InvalidPasswordError(email, 'No hash provided from db'));
   try {
     const verify = await argon2.verify(hash, inputPw);
-    if (!verify) Promise.reject(new InvalidPasswordError(username, 'Invalid password'));
+    if (!verify) Promise.reject(new InvalidPasswordError(email, 'Invalid password'));
     return Promise.resolve(verify);
   } catch (e) {
     return Promise.reject(e);
@@ -62,10 +62,9 @@ export const LoginRouter = async (app: FastifyInstance) => {
         .bind(
           'user',
           TETryCatch(
-            async () =>
-              await getCollections().users?.findOne({ username: req.body.username }),
+            async () => await getCollections().users?.findOne({ email: req.body.email }),
             (reason) => {
-              logger.debug(new UserNotFoundError(req.body.username, reason));
+              logger.debug(new UserNotFoundError(req.body.email, reason));
               return {
                 msg: invalidPwMessage,
                 status: StatusResponses.Enum.Failure,
@@ -77,7 +76,7 @@ export const LoginRouter = async (app: FastifyInstance) => {
         .bindL('validPassword', ({ user }) =>
           TETryCatch(
             async () =>
-              await validatePw(req.body.password, req.body.username, user?.password),
+              await validatePw(req.body.password, req.body.email, user?.password),
             (reason) => {
               logger.debug(reason);
               return {
